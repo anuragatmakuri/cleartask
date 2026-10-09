@@ -1,0 +1,37 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, existsSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
+import { SQLiteStore } from "../src/storage.js";
+import { ClearTask } from "../src/domain.js";
+
+const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
+test("CLI export, nonmutating dry-run, explicit import, backup/recovery, and private permissions", t => {
+  const dir = mkdtempSync(join(tmpdir(), "cleartask-cli-")); t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const db = join(dir, "original.sqlite"), json = join(dir, "snapshot.json"), imported = join(dir, "imported.sqlite"), backup = join(dir, "backup.sqlite");
+  const env = { HOME: dir, PATH: process.env.PATH, TZ: "America/Chicago" };
+  const run = (...args) => spawnSync(process.execPath, [cli, ...args], { env, encoding: "utf8" });
+  const store = new SQLiteStore(db);
+  const core = new ClearTask(store);
+  const created = core.mutate({ operation: { entity: "task", action: "create", data: { title: "Private backup" } }, idempotencyKey: "cli-create-1" });
+  store.close();
+  assert.equal(run("export", "--output", json, "--db", db).status, 0);
+  assert.equal(statSync(json).mode & 0o777, 0o600);
+  assert.equal(run("export", "--output", json, "--db", db).status, 1);
+  const dryRun = run("import", json, "--db", imported);
+  assert.equal(dryRun.status, 0, dryRun.stderr);
+  assert.equal(JSON.parse(dryRun.stdout).dryRun, true);
+  assert.equal(existsSync(imported), false);
+  assert.equal(run("import", json, "--db", imported, "--confirm").status, 0);
+  assert.equal(run("import", json, "--db", imported, "--confirm").status, 1);
+  const backupResult = run("backup", "--output", backup, "--db", db);
+  assert.equal(backupResult.status, 0, backupResult.stderr);
+  assert.equal(statSync(backup).mode & 0o777, 0o600);
+  const restored = new SQLiteStore(backup); t.after(() => restored.close());
+  assert.equal(new ClearTask(restored).read("task", created.createdIds[0].id).title, "Private backup");
+  assert.equal(JSON.parse(readFileSync(json)).formatVersion, 1);
+  assert.equal(run("serve", "unexpected").status, 1);
+});

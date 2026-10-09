@@ -1,0 +1,20 @@
+{
+  "name": "@cleartask/mcp",
+  "version": "0.1.0",
+  "description": "Local-first deterministic task management over MCP. No model or Firebase API key required.",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=22.13.0" },
+  "bin": { "cleartask-mcp": "./src/cli.js" },
+  "exports": { ".": "./src/server.js", "./domain": "./src/domain.js" },
+  "files": ["src", "README.md", "LICENSE", "SECURITY.md", "CONTRIBUTING.md", "CHANGELOG.md", "docs", "examples"],
+  "scripts": {
+    "start": "node src/cli.js serve",
+    "test": "node --test test/*.test.js",
+    "check": "node --check src/cli.js && node --check src/server.js && node --check src/domain.js && node --check src/storage.js && node --check src/schemas.js && node --check src/behavior.js && node --check src/cleanup.js && node --check src/weekly-diagnostics.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "zod": "4.6.5"
+  }
+}

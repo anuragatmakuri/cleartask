@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "cleartask": {
+      "command": "node",
+      "args": ["/absolute/path/to/cleartask-mcp/src/cli.js", "serve"],
+      "env": { "TZ": "America/Chicago" }
+    }
+  }
+}
